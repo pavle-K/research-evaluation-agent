@@ -5,6 +5,7 @@ from semantic_index import create_semantic_index
 from query_paper import query_paper
 from generate_prompt import generate_analysis_prompt
 from call_llm import analyze_with_openai
+from research_classifier import ResearchClassifier
 
 class PaperEvaluator:
     """
@@ -25,6 +26,15 @@ class PaperEvaluator:
         
         # Extract basic paper statistics
         self.stats = self._extract_paper_statistics()
+        
+        # Create research classifier
+        self.classifier = ResearchClassifier(paper_text, chunks)
+        
+        # Classify research type and get tailored criteria
+        self.research_classification = self.classifier.classify_research_type()
+        self.evaluation_criteria = self.classifier.get_tailored_evaluation_criteria(
+            self.research_classification["research_type"]
+        )
         
     def _extract_paper_statistics(self):
         """
@@ -76,7 +86,12 @@ class PaperEvaluator:
         Returns:
             str: Detailed evaluation of the paper's methodology
         """
-        # Query for methodology-related content
+        # Get research type and tailored criteria
+        research_type = self.research_classification["research_type"]
+        type_description = self.evaluation_criteria["type_description"]
+        methodology_criteria = self.evaluation_criteria["methodology_criteria"]
+        
+        # Generate custom queries based on research type
         methodology_queries = [
             "What methods does this paper use?",
             "How is the experimental design structured?",
@@ -85,6 +100,33 @@ class PaperEvaluator:
             "What are the limitations of the methodology?"
         ]
         
+        # Add research-type specific queries
+        if research_type == "empirical_quantitative":
+            methodology_queries.extend([
+                "What statistical methods are used in this paper?",
+                "How large is the sample size and how was it determined?",
+                "What control measures or variables are used in the experiments?"
+            ])
+        elif research_type == "empirical_qualitative":
+            methodology_queries.extend([
+                "What qualitative methods are used in this paper?",
+                "How were participants or cases selected?",
+                "What data collection and analysis procedures were used?"
+            ])
+        elif research_type == "simulation":
+            methodology_queries.extend([
+                "How is the simulation model designed and implemented?",
+                "What parameters and assumptions are used in the simulation?",
+                "How is the simulation validated or verified?"
+            ])
+        elif research_type == "whitepaper":
+            methodology_queries.extend([
+                "What proof-of-concept or preliminary testing is described?",
+                "How are the proposed solutions or technologies implemented?",
+                "What evaluation methods are used to assess the proposed solution?"
+            ])
+        
+        # Query for methodology-related content
         methodology_results = []
         for query in methodology_queries:
             relevant_paragraphs = query_paper(self.semantic_index, query)
@@ -105,7 +147,12 @@ class PaperEvaluator:
         
         # Generate comprehensive methodology evaluation
         methodology_prompt = f"""
-        Provide a comprehensive evaluation of the research methodology in this paper. 
+        Provide a comprehensive evaluation of the research methodology in this paper.
+        
+        IMPORTANT: This paper has been classified as a {research_type} paper ({type_description}).
+        
+        For this type of research, the methodology evaluation should focus on the following criteria:
+        {', '.join([f"{i+1}. {criterion}" for i, criterion in enumerate(methodology_criteria)])}
         
         Paper statistics:
         - Word count: {self.stats['word_count']}
@@ -123,16 +170,21 @@ class PaperEvaluator:
         for result in methodology_results:
             methodology_prompt += f"\n\n{result['query']}:\n{result['analysis']}"
         
-        methodology_prompt += """
+        methodology_prompt += f"""
         
-        Based on the above information, provide a detailed evaluation of the methodology covering:
-        1. Appropriateness of methods for the research question
-        2. Experimental design quality
-        3. Data collection and analysis techniques
-        4. Methodological limitations and biases
-        5. Overall assessment of methodological rigor
+        Based on the above information, provide a detailed evaluation of the methodology for this {research_type} paper. Your evaluation must:
         
-        Structure your evaluation with clear sections, highlighting both strengths and weaknesses.
+        1. Be extremely critical and rigorous
+        2. Identify specific methodological weaknesses and limitations
+        3. Assess whether the methodology is appropriate for the research goals
+        4. Evaluate whether the evidence presented is sufficient to support the claims made
+        5. Consider whether alternative methodologies would have been more appropriate
+        
+        For each of the following criteria, provide a detailed assessment:
+        
+        {chr(10).join([f"- {criterion}" for criterion in methodology_criteria])}
+        
+        Structure your evaluation with clear sections, highlighting both strengths and weaknesses. Be specific and precise in your critique, avoiding generic statements. If the paper makes claims without sufficient methodological support, explicitly identify these issues.
         """
         
         final_evaluation = analyze_with_openai("Evaluate methodology", methodology_prompt)
@@ -145,7 +197,12 @@ class PaperEvaluator:
         Returns:
             str: Detailed evaluation of the paper's robustness
         """
-        # Query for robustness-related content
+        # Get research type and tailored criteria
+        research_type = self.research_classification["research_type"]
+        type_description = self.evaluation_criteria["type_description"]
+        robustness_criteria = self.evaluation_criteria["robustness_criteria"]
+        
+        # Generate custom queries based on research type
         robustness_queries = [
             "How reliable are the results in this paper?",
             "What statistical methods are used to ensure validity?",
@@ -154,6 +211,27 @@ class PaperEvaluator:
             "How generalizable are the findings of this paper?"
         ]
         
+        # Add research-type specific queries
+        if research_type == "empirical_quantitative":
+            robustness_queries.extend([
+                "What statistical power analysis or sample size justification is provided?",
+                "How are effect sizes reported and interpreted?",
+                "What measures are taken to ensure reproducibility of the results?"
+            ])
+        elif research_type == "simulation":
+            robustness_queries.extend([
+                "What sensitivity analysis is performed on the simulation parameters?",
+                "How is the simulation validated against real-world data?",
+                "What measures are taken to ensure reproducibility of the simulation?"
+            ])
+        elif research_type == "whitepaper":
+            robustness_queries.extend([
+                "What evidence is provided to support the claims made?",
+                "How thoroughly are the limitations of the proposed solution discussed?",
+                "What potential challenges to implementation are addressed?"
+            ])
+        
+        # Query for robustness-related content
         robustness_results = []
         for query in robustness_queries:
             relevant_paragraphs = query_paper(self.semantic_index, query)
@@ -174,7 +252,12 @@ class PaperEvaluator:
         
         # Generate comprehensive robustness evaluation
         robustness_prompt = f"""
-        Provide a comprehensive evaluation of the research robustness in this paper. 
+        Provide a comprehensive evaluation of the research robustness in this paper.
+        
+        IMPORTANT: This paper has been classified as a {research_type} paper ({type_description}).
+        
+        For this type of research, the robustness evaluation should focus on the following criteria:
+        {', '.join([f"{i+1}. {criterion}" for i, criterion in enumerate(robustness_criteria)])}
         
         Paper statistics:
         - Word count: {self.stats['word_count']}
@@ -192,16 +275,23 @@ class PaperEvaluator:
         for result in robustness_results:
             robustness_prompt += f"\n\n{result['query']}:\n{result['analysis']}"
         
-        robustness_prompt += """
+        robustness_prompt += f"""
         
-        Based on the above information, provide a detailed evaluation of the robustness covering:
-        1. Reliability and reproducibility of results
-        2. Statistical significance and effect sizes
-        3. Treatment of confounding variables and biases
-        4. Generalizability of findings
-        5. Overall assessment of research robustness
+        Based on the above information, provide a detailed evaluation of the robustness for this {research_type} paper. Your evaluation must:
         
-        Structure your evaluation with clear sections, highlighting both strengths and weaknesses.
+        1. Be extremely critical and rigorous
+        2. Identify specific robustness weaknesses and limitations
+        3. Assess whether the evidence presented is sufficient and reliable
+        4. Evaluate whether appropriate measures were taken to ensure validity
+        5. Consider whether the claims made are justified by the evidence presented
+        
+        For each of the following criteria, provide a detailed assessment:
+        
+        {chr(10).join([f"- {criterion}" for criterion in robustness_criteria])}
+        
+        Structure your evaluation with clear sections, highlighting both strengths and weaknesses. Be specific and precise in your critique, avoiding generic statements. If the paper makes claims without sufficient evidence or validation, explicitly identify these issues.
+        
+        IMPORTANT: Be particularly critical of sample sizes, number of trials/runs, statistical validity, and generalizability claims. If the paper only conducted a few trials or has a small sample size, explicitly state that this is insufficient for statistical validity.
         """
         
         final_evaluation = analyze_with_openai("Evaluate robustness", robustness_prompt)
@@ -214,7 +304,12 @@ class PaperEvaluator:
         Returns:
             str: Detailed evaluation of the paper's significance
         """
-        # Query for significance-related content
+        # Get research type and tailored criteria
+        research_type = self.research_classification["research_type"]
+        type_description = self.evaluation_criteria["type_description"]
+        significance_criteria = self.evaluation_criteria["significance_criteria"]
+        
+        # Generate custom queries based on research type
         significance_queries = [
             "What is the main contribution of this paper?",
             "How does this paper advance the field?",
@@ -223,6 +318,27 @@ class PaperEvaluator:
             "How does this paper compare to related work?"
         ]
         
+        # Add research-type specific queries
+        if research_type == "theoretical":
+            significance_queries.extend([
+                "How does this theory extend or challenge existing theoretical frameworks?",
+                "What new conceptual insights does this paper provide?",
+                "How might this theoretical contribution influence future research?"
+            ])
+        elif research_type == "design_science":
+            significance_queries.extend([
+                "What practical problem does this research address?",
+                "How does the proposed artifact or solution improve upon existing approaches?",
+                "What evidence is provided for the utility of the proposed solution?"
+            ])
+        elif research_type == "whitepaper":
+            significance_queries.extend([
+                "What problem or opportunity does this whitepaper address?",
+                "How does the proposed solution compare to existing alternatives?",
+                "What potential applications or implications are discussed?"
+            ])
+        
+        # Query for significance-related content
         significance_results = []
         for query in significance_queries:
             relevant_paragraphs = query_paper(self.semantic_index, query)
@@ -243,7 +359,12 @@ class PaperEvaluator:
         
         # Generate comprehensive significance evaluation
         significance_prompt = f"""
-        Provide a comprehensive evaluation of the research significance and innovation in this paper. 
+        Provide a comprehensive evaluation of the research significance and innovation in this paper.
+        
+        IMPORTANT: This paper has been classified as a {research_type} paper ({type_description}).
+        
+        For this type of research, the significance evaluation should focus on the following criteria:
+        {', '.join([f"{i+1}. {criterion}" for i, criterion in enumerate(significance_criteria)])}
         
         Paper statistics:
         - Word count: {self.stats['word_count']}
@@ -261,16 +382,21 @@ class PaperEvaluator:
         for result in significance_results:
             significance_prompt += f"\n\n{result['query']}:\n{result['analysis']}"
         
-        significance_prompt += """
+        significance_prompt += f"""
         
-        Based on the above information, provide a detailed evaluation of the significance and innovation covering:
-        1. Importance of the research question in the field
-        2. Novelty of approach or findings
-        3. Advancement of knowledge in the field
-        4. Potential impact on theory or practice
-        5. Overall assessment of research significance
+        Based on the above information, provide a detailed evaluation of the significance and innovation for this {research_type} paper. Your evaluation must:
         
-        Structure your evaluation with clear sections, highlighting both strengths and weaknesses.
+        1. Be extremely critical and rigorous
+        2. Identify the specific contributions and their importance
+        3. Assess whether the claimed contributions are truly novel or incremental
+        4. Evaluate the potential impact on theory and/or practice
+        5. Consider whether the paper's significance claims are justified by the evidence presented
+        
+        For each of the following criteria, provide a detailed assessment:
+        
+        {chr(10).join([f"- {criterion}" for criterion in significance_criteria])}
+        
+        Structure your evaluation with clear sections, highlighting both strengths and weaknesses. Be specific and precise in your critique, avoiding generic statements. If the paper makes exaggerated claims about its significance or novelty, explicitly identify these issues.
         """
         
         final_evaluation = analyze_with_openai("Evaluate significance", significance_prompt)
@@ -283,12 +409,22 @@ class PaperEvaluator:
         Returns:
             str: Comprehensive evaluation of the paper
         """
+        # Get research type and classification details
+        research_type = self.research_classification["research_type"]
+        type_description = self.evaluation_criteria["type_description"]
+        classification_rationale = self.research_classification["rationale"]
+        
+        # Get evaluations
         methodology_eval = self.evaluate_methodology()
         robustness_eval = self.evaluate_robustness()
         significance_eval = self.evaluate_significance()
         
         comprehensive_prompt = f"""
         Provide a comprehensive evaluation of this research paper based on the following detailed assessments:
+        
+        PAPER CLASSIFICATION:
+        This paper has been classified as a {research_type} paper ({type_description}).
+        Rationale for classification: {classification_rationale}
         
         METHODOLOGY EVALUATION:
         {methodology_eval}
@@ -307,11 +443,13 @@ class PaperEvaluator:
         - Equation count: {self.stats['equation_count']}
         - Most common terms: {', '.join([f"{term[0]} ({term[1]})" for term in self.stats['common_words'][:10]])}
         
-        Based on all the above information, provide a final comprehensive evaluation of the paper that:
+        Based on all the above information, provide a final comprehensive evaluation of this {research_type} paper that:
         1. Summarizes the key strengths and weaknesses across all dimensions
         2. Provides an overall assessment of the paper's quality and contribution
         3. Offers constructive suggestions for improvement
         4. Concludes with a final verdict on the paper's merit
+        
+        Your evaluation must be extremely critical and rigorous, identifying specific issues and limitations. Be particularly critical of methodological flaws, insufficient evidence, exaggerated claims, and lack of statistical validity. Avoid generic statements and be specific in your critique.
         
         Structure your evaluation with clear sections and a final summary.
         """
