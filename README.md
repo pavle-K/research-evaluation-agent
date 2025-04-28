@@ -1,4 +1,4 @@
-# Deep Research Quality Check
+# Research Evaluation Agent
 
 A specialized tool for evaluating academic research papers. This system performs in-depth analysis of research papers, providing detailed evaluations of methodology, robustness, significance, and more.
 
