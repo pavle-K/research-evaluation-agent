@@ -1,4 +1,6 @@
 import re
+import numpy as np
+import openai
 
 def query_paper(index, question, top_k=5, embedding_model='text-embedding-ada-002'):
     """
@@ -13,8 +15,6 @@ def query_paper(index, question, top_k=5, embedding_model='text-embedding-ada-00
     Returns:
         list: Relevant paragraphs with their metadata
     """
-    import numpy as np
-    import openai
     
     # Create OpenAI client
     openai_client = openai.OpenAI()

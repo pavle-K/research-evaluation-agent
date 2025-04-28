@@ -4,7 +4,7 @@ Module for classifying research papers by type and providing tailored evaluation
 
 import re
 from collections import Counter
-from call_llm import analyze_with_openai
+from utils.llm_utils.call_llm import analyze_with_openai
 
 # Research paper types and their characteristics
 RESEARCH_TYPES = {

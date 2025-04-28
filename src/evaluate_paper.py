@@ -6,8 +6,8 @@ Command-line interface for evaluating research papers.
 import argparse
 import sys
 import time
-from pdf_utils import download_pdf, extract_text_from_pdf, extract_chunks
-from paper_evaluation import PaperEvaluator
+from utils.pdf_utils.pdf_utils import download_pdf, extract_text_from_pdf, extract_chunks
+from evaluation.paper_evaluation import PaperEvaluator
 
 def main():
     # Parse command line arguments

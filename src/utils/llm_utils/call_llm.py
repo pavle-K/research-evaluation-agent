@@ -31,7 +31,6 @@ def get_system_prompt():
 
 def analyze_with_openai(question, 
                         context, 
-                        api_key="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", 
                         model="gpt-4-turbo", 
                         max_retries=3):
     """
@@ -47,13 +46,10 @@ def analyze_with_openai(question,
     Returns:
         str: The analysis result
     """
-    if api_key:
-        openai.api_key = api_key
-    
     system_prompt = get_system_prompt()
     
-    # Create OpenAI client
-    client = openai.OpenAI(api_key=api_key)
+    # Create OpenAI client (uses OPENAI_API_KEY environment variable)
+    client = openai.OpenAI()
     
     # Try multiple times in case of rate limiting or server errors
     for attempt in range(max_retries):

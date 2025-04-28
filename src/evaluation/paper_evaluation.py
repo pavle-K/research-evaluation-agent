@@ -1,11 +1,11 @@
 import re
 from collections import Counter
 import numpy as np
-from semantic_index import create_semantic_index
-from query_paper import query_paper
-from generate_prompt import generate_analysis_prompt
-from call_llm import analyze_with_openai
-from research_classifier import ResearchClassifier
+from utils.llm_utils.semantic_index import create_semantic_index
+from utils.llm_utils.query_paper import query_paper
+from utils.llm_utils.generate_prompt import generate_analysis_prompt
+from utils.llm_utils.call_llm import analyze_with_openai
+from evaluation.research_classifier import ResearchClassifier
 
 class PaperEvaluator:
     """

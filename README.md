@@ -2,17 +2,57 @@
 
 A specialized tool for evaluating academic research papers. This system performs in-depth analysis of research papers, providing detailed evaluations of methodology, robustness, significance, and more.
 
-## Features
+## Directory Structure
 
-- **PDF Processing**: Automatically downloads and extracts text from research papers
-- **Semantic Analysis**: Uses embeddings to understand the content and context of the paper
-- **Specialized Evaluations**:
-  - **Methodology Evaluation**: Assesses the appropriateness and rigor of research methods
-  - **Robustness Evaluation**: Analyzes reliability, validity, and generalizability of findings
-  - **Significance Evaluation**: Evaluates the importance, novelty, and potential impact
-  - **Comprehensive Evaluation**: Combines all evaluations for a complete assessment
-- **Statistical Analysis**: Extracts and analyzes key metrics from the paper
-- **Command-line Interface**: Easy-to-use CLI for evaluating papers
+```
+src/
+├── evaluate_paper.py       # Main entry point and CLI interface
+├── evaluation/            # Core evaluation logic
+│   ├── paper_evaluation.py     # Paper evaluation implementation
+│   └── research_classifier.py  # Research type classification
+└── utils/
+    ├── pdf_utils/        # PDF processing utilities
+    │   └── pdf_utils.py  # PDF handling functions
+    └── llm_utils/        # LLM interaction utilities
+        ├── call_llm.py         # OpenAI API interaction
+        ├── generate_prompt.py  # Prompt generation
+        ├── semantic_index.py   # Semantic search functionality
+        └── query_paper.py      # Paper content querying
+```
+
+## How It Works
+
+The system follows this pipeline when evaluating a paper:
+
+1. **Paper Download & Processing** (`utils/pdf_utils/pdf_utils.py`):
+   - Downloads PDF from provided URL
+   - Extracts text content
+   - Chunks text into manageable segments for analysis
+
+2. **Research Classification** (`evaluation/research_classifier.py`):
+   - Analyzes paper content to determine research type
+   - Categories include: empirical_quantitative, empirical_qualitative, theoretical, review, etc.
+   - Provides tailored evaluation criteria based on research type
+
+3. **Semantic Indexing** (`utils/llm_utils/semantic_index.py`):
+   - Creates embeddings of paper chunks using OpenAI's API
+   - Enables semantic search through paper content
+   - Helps find relevant sections for specific evaluation aspects
+
+4. **Paper Querying** (`utils/llm_utils/query_paper.py`):
+   - Uses semantic search to find relevant paper sections
+   - Applies heuristics based on query type
+   - Refines results for better relevance
+
+5. **Evaluation Process** (`evaluation/paper_evaluation.py`):
+   - Methodology Evaluation: Assesses research methods and approach
+   - Robustness Evaluation: Analyzes reliability and validity
+   - Significance Evaluation: Evaluates importance and impact
+   - Comprehensive Evaluation: Combines all aspects
+
+6. **LLM Integration**:
+   - `utils/llm_utils/generate_prompt.py`: Creates structured prompts for analysis
+   - `utils/llm_utils/call_llm.py`: Handles OpenAI API interaction with retry logic
 
 ## Installation
 
@@ -38,99 +78,96 @@ A specialized tool for evaluating academic research papers. This system performs
 
 ## Usage
 
-### Command-line Interface
+### Basic Usage
 
-The easiest way to use the system is through the command-line interface:
+The simplest way to evaluate a paper:
 
 ```bash
-python evaluate_paper.py https://arxiv.org/pdf/2305.16291 --evaluation comprehensive --output evaluation.md
+python src/evaluate_paper.py https://arxiv.org/pdf/2305.16291 --evaluation comprehensive
+```
+
+### Advanced Usage
+
+For more detailed output and control:
+
+```bash
+python src/evaluate_paper.py https://arxiv.org/pdf/2305.16291 --evaluation robustness --verbose --output evaluation.md
 ```
 
 Arguments:
 - `url`: URL of the PDF to evaluate (required)
-- `--evaluation`, `-e`: Type of evaluation to perform (choices: methodology, robustness, significance, comprehensive; default: comprehensive)
-- `--output`, `-o`: Output file to save the evaluation
-- `--verbose`, `-v`: Print verbose output
+- `--evaluation`, `-e`: Evaluation type (choices below)
+- `--output`, `-o`: Save evaluation to file
+- `--verbose`, `-v`: Print detailed progress
 
-### Python API
+### Evaluation Types
 
-You can also use the system programmatically:
+1. **Methodology** (`--evaluation methodology`):
+   - Assesses research methods
+   - Evaluates experimental design
+   - Analyzes data collection techniques
+   - Reviews methodological limitations
 
-```python
-from pdf_utils import download_pdf, extract_text_from_pdf, extract_chunks
-from paper_evaluation import PaperEvaluator
+2. **Robustness** (`--evaluation robustness`):
+   - Checks statistical validity
+   - Examines reproducibility
+   - Assesses generalizability
+   - Reviews potential biases
 
-# Download and process the paper
-pdf_path = download_pdf("https://arxiv.org/pdf/2305.16291")
-text = extract_text_from_pdf(pdf_path)
-chunks = extract_chunks(text)
+3. **Significance** (`--evaluation significance`):
+   - Evaluates research contribution
+   - Assesses novelty
+   - Reviews potential impact
+   - Analyzes theoretical/practical implications
 
-# Create evaluator
-evaluator = PaperEvaluator(text, chunks)
+4. **Comprehensive** (`--evaluation comprehensive`):
+   - Combines all above evaluations
+   - Provides overall assessment
+   - Includes improvement suggestions
+   - Gives final quality verdict
 
-# Perform evaluations
-methodology_eval = evaluator.evaluate_methodology()
-robustness_eval = evaluator.evaluate_robustness()
-significance_eval = evaluator.evaluate_significance()
-comprehensive_eval = evaluator.evaluate_comprehensive()
+## Technical Details
 
-# Print or save the evaluations
-print(methodology_eval)
-```
+### Paper Processing Pipeline
 
-## System Components
+1. **PDF Processing**:
+   - Downloads PDF using requests
+   - Extracts text using PyMuPDF
+   - Chunks text with overlap for context preservation
 
-- **pdf_utils.py**: Functions for downloading PDFs and extracting text
-- **semantic_index.py**: Creates semantic embeddings for paper content
-- **query_paper.py**: Retrieves relevant sections based on queries
-- **generate_prompt.py**: Generates prompts for analysis
-- **call_llm.py**: Interfaces with OpenAI API for analysis
-- **paper_evaluation.py**: Main evaluation logic and specialized assessments
-- **evaluate_paper.py**: Command-line interface
-- **main.py**: Example script showing the evaluation process
+2. **Semantic Analysis**:
+   - Creates embeddings using OpenAI's API
+   - Builds searchable index
+   - Enables semantic similarity search
 
-## Evaluation Types
+3. **Research Classification**:
+   - Uses both rule-based and LLM-based classification
+   - Identifies research type
+   - Provides type-specific evaluation criteria
 
-### Methodology Evaluation
+4. **Evaluation Process**:
+   - Generates targeted queries
+   - Retrieves relevant sections
+   - Creates specialized prompts
+   - Analyzes using OpenAI's GPT models
 
-Assesses the research methods used in the paper, including:
-- Appropriateness of methods for the research question
-- Experimental design quality
-- Data collection and analysis techniques
-- Methodological limitations and biases
-- Overall assessment of methodological rigor
+### Key Components
 
-### Robustness Evaluation
-
-Analyzes the reliability and validity of the research, including:
-- Reliability and reproducibility of results
-- Statistical significance and effect sizes
-- Treatment of confounding variables and biases
-- Generalizability of findings
-- Overall assessment of research robustness
-
-### Significance Evaluation
-
-Evaluates the importance and impact of the research, including:
-- Importance of the research question in the field
-- Novelty of approach or findings
-- Advancement of knowledge in the field
-- Potential impact on theory or practice
-- Overall assessment of research significance
-
-### Comprehensive Evaluation
-
-Combines all the above evaluations for a complete assessment of the paper, including:
-- Summary of key strengths and weaknesses
-- Overall assessment of paper quality and contribution
-- Constructive suggestions for improvement
-- Final verdict on the paper's merit
+- **Semantic Search**: Uses OpenAI embeddings for finding relevant paper sections
+- **Adaptive Evaluation**: Tailors criteria based on research type
+- **Robust LLM Integration**: Includes retry logic and error handling
+- **Modular Design**: Separates concerns for maintainability
 
 ## Requirements
 
 - Python 3.8+
 - OpenAI API key
-- Required Python packages (see requirements.txt)
+- Required packages:
+  - openai
+  - numpy
+  - PyMuPDF
+  - python-dotenv
+  - requests
 
 ## License
 
