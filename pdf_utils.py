@@ -26,117 +26,71 @@ def extract_text_from_pdf(pdf_path):
     doc.close()
     return full_text
 
-def detect_sections(text: str):
-    """
-    Enhanced academic paper section detector that finds both main sections and subsections.
+def clean_section_content(content):
+    """Cleans up common artifacts in section content"""
+    # Remove page numbers 
+    content = re.sub(r'\n\s*\d+\s*\n', '\n', content)
     
-    This detector specifically addresses:
-    - Numbered sections like "3 Modal Interface Automata"
-    - Numbered subsections like "2.1 Input/Output Conformance"
-    - Non-numbered section titles
-    - Computer science specific terminology in section headings
+    # Remove header/footer artifacts
+    content = re.sub(r'\n[^a-zA-Z0-9\s\.,;:\(\)\[\]\{\}\-_=\+\*\/\\]{2,}\n', '\n', content)
+    
+    # Join hyphenated words at end of lines
+    content = re.sub(r'(\w+)-\n(\w+)', r'\1\2', content)
+    
+    # Remove excessive whitespace
+    content = re.sub(r'\n{3,}', '\n\n', content)
+    
+    return content
+
+def extract_chunks(text, chunk_size=1500, overlap=300):
+    """
+    Creates overlapping chunks of the text without trying to identify sections.
     
     Args:
-        text (str): The full text of the academic paper
+        text (str): The full text of the paper
+        chunk_size (int): Size of each chunk in characters
+        overlap (int): Overlap between chunks in characters
         
     Returns:
-        dict: A hierarchical structure with main sections and their subsections
+        list: A list of dictionaries with chunks and their positions
     """
-    lines = text.split('\n')
-    all_sections = []
+    chunks = []
+    start = 0
     
-    # Common section names in academic papers
-    common_sections = [
-        "abstract", "introduction", "background", "related work",
-        "methodology", "methods", "experiments", "results", 
-        "discussion", "conclusion", "future work", "references",
-        "preliminaries", "implementation", "evaluation", "analysis"
-    ]
-    
-    # Computer science specific terms that often appear in section titles
-    cs_specific_terms = [
-        "interface", "automata", "conformance", "testing",
-        "modal", "correctness", "proof", "theorem", "proposition"
-    ]
-    
-    # Extract potential sections
-    for i, line in enumerate(lines):
-        line = line.strip()
+    while start < len(text):
+        # Determine end position
+        end = min(start + chunk_size, len(text))
         
-        # Skip empty lines or very long lines (likely paragraphs)
-        if not line or len(line) > 70:
-            continue
+        # If not at the end of text, try to find a good break point
+        if end < len(text):
+            # Look for paragraph breaks
+            paragraph_break = text.rfind('\n\n', start + chunk_size - overlap, end)
+            if paragraph_break > start:
+                end = paragraph_break + 2  # Include the newlines
+            else:
+                # Look for sentence breaks
+                sentence_break = max(
+                    text.rfind('. ', start + chunk_size - overlap, end),
+                    text.rfind('? ', start + chunk_size - overlap, end),
+                    text.rfind('! ', start + chunk_size - overlap, end)
+                )
+                if sentence_break > start:
+                    end = sentence_break + 2  # Include the period and space
         
-        is_section = False
+        # Extract chunk
+        chunk_text = text[start:end].strip()
         
-        # 1. Check for section numbers with decimal points (e.g., "2.1 Methods")
-        if re.match(r'^(\d+\.\d+)\s+[A-Z]', line):
-            is_section = True
+        # Get the first line as a "title" for reference
+        first_line = chunk_text.split('\n', 1)[0] if '\n' in chunk_text else chunk_text[:50]
         
-        # 2. Check for single-number section titles (e.g., "3 Modal Interface Automata")
-        elif re.match(r'^(\d+)\s+[A-Z]', line):
-            is_section = True
+        chunks.append({
+            'title': f"Chunk {len(chunks)+1}: {first_line}...",
+            'content': chunk_text,
+            'start_pos': start,
+            'end_pos': end
+        })
         
-        # 3. Check for standalone section numbers (e.g., "3" on its own line)
-        elif re.match(r'^\d+$', line) and i < len(lines)-1 and lines[i+1].strip() and lines[i+1].strip()[0].isupper():
-            is_section = True
-        
-        # 4. Check for common section titles (exact match)
-        elif any(section.lower() == line.lower() for section in common_sections):
-            is_section = True
-        
-        # 5. Check for Computer Science specific section titles
-        elif (any(term.lower() in line.lower() for term in cs_specific_terms) and 
-              len(line.split()) <= 6 and line[0].isupper()):
-            is_section = True
-        
-        # 6. Check for I/O-related sections (specific to this paper domain)
-        elif ("I/O" in line or "Input/Output" in line) and len(line.split()) <= 6:
-            is_section = True
-            
-        if is_section:
-            all_sections.append((i, line))  # Store line number for ordering
+        # Move to next chunk with overlap
+        start = end - overlap if end < len(text) else len(text)
     
-    # Organize sections into a hierarchical structure
-    hierarchy = {}
-    current_main_section = None
-    
-    # Sort sections by line number to preserve original order
-    all_sections.sort(key=lambda x: x[0])
-    sections = [s[1] for s in all_sections]
-    
-    for section in sections:
-        # Identify main sections vs subsections
-        if (not re.match(r'^\d+\.\d+', section) and  # Not like "2.1"
-            (not re.match(r'^\d+\s+', section) or     # Not like "3 Something" 
-             section in ["Introduction", "Preliminaries", "References"])):  # Common main sections
-            current_main_section = section
-            hierarchy[current_main_section] = []
-        elif re.match(r'^\d+\s+', section):  # Like "3 Modal Interface Automata"
-            current_main_section = section
-            hierarchy[current_main_section] = []
-        elif current_main_section is not None:
-            # This is a subsection of the current main section
-            hierarchy[current_main_section].append(section)
-    
-    return hierarchy
-
-
-def extract_sections_flat(text: str):
-    """
-    Returns a simple flat list of all detected sections and subsections.
-    
-    Args:
-        text (str): The full text of the academic paper
-        
-    Returns:
-        list: All detected sections and subsections in order of appearance
-    """
-    hierarchy = detect_sections(text)
-    flat_list = []
-    
-    for main_section, subsections in hierarchy.items():
-        flat_list.append(main_section)
-        flat_list.extend(subsections)
-    
-    return flat_list
+    return chunks
