@@ -1,2 +1,17 @@
-requests
-PyMuPDF
+# Core dependencies
+openai>=1.0.0
+numpy>=1.20.0
+python-dotenv>=1.0.0
+requests>=2.25.0
+PyMuPDF>=1.18.0  # For PDF processing
+
+# For semantic search and embeddings
+scikit-learn>=1.0.0
+
+# For command-line interface
+argparse>=1.4.0
+
+# For development and testing
+pytest>=6.0.0
+black>=21.5b2
+flake8>=3.9.0

@@ -1,45 +1,54 @@
 # main.py
 
-import json
+import sys
+import argparse
 from pdf_utils import download_pdf, extract_text_from_pdf, extract_chunks
-from semantic_index import create_semantic_index
-from query_paper import query_paper
-from generate_prompt import generate_analysis_prompt
-from call_llm import analyze_with_openai
-
-question = "Evaluate the robustness of this paper?"
+from paper_evaluation import PaperEvaluator
 
 def main():
-    # Example URL (replace with a real one)
-    #pdf_url = "https://arxiv.org/pdf/2504.17131"#
-    #pdf_url = "https://arxiv.org/pdf/1504.03473"
-    pdf_url = "https://arxiv.org/pdf/2305.16291"
-
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Evaluate a research paper.')
+    parser.add_argument('--url', type=str, default="https://arxiv.org/pdf/2305.16291",
+                        help='URL of the PDF to evaluate')
+    parser.add_argument('--evaluation', type=str, default="robustness",
+                        choices=['methodology', 'robustness', 'significance', 'comprehensive'],
+                        help='Type of evaluation to perform')
+    args = parser.parse_args()
+    
     # Step 1: Download the PDF
-    pdf_path = download_pdf(pdf_url)
+    pdf_path = download_pdf(args.url)
     print(f"Downloaded PDF to: {pdf_path}")
 
     # Step 2: Extract text from the downloaded PDF
     text = extract_text_from_pdf(pdf_path)
     print(f"Extracted {len(text)} characters of text.")
-    #print(text)
 
-    sections = extract_chunks(text)
-    print(len(sections))
+    # Step 3: Extract chunks from the text
+    chunks = extract_chunks(text)
+    print(f"Created {len(chunks)} chunks from the text.")
 
-    semantic_index = create_semantic_index(sections)
-    print(len(semantic_index))
-
-    relevant_paragraphs = query_paper(semantic_index, question)
-    print(relevant_paragraphs)
-
-    prompt = generate_analysis_prompt(question, relevant_paragraphs)
-    print(prompt)
+    # Step 4: Create paper evaluator
+    evaluator = PaperEvaluator(text, chunks)
+    print("Created paper evaluator and extracted statistics.")
     
-    # Step 6: Analyze the paper with OpenAI
-    analysis = analyze_with_openai(question, prompt)
-    print("\nAnalysis:")
-    print(analysis)
+    # Step 5: Perform the requested evaluation
+    print(f"\nPerforming {args.evaluation} evaluation...\n")
+    
+    if args.evaluation == 'methodology':
+        evaluation = evaluator.evaluate_methodology()
+    elif args.evaluation == 'robustness':
+        evaluation = evaluator.evaluate_robustness()
+    elif args.evaluation == 'significance':
+        evaluation = evaluator.evaluate_significance()
+    elif args.evaluation == 'comprehensive':
+        evaluation = evaluator.evaluate_comprehensive()
+    else:
+        print(f"Unknown evaluation type: {args.evaluation}")
+        sys.exit(1)
+    
+    # Step 6: Print the evaluation
+    print("\nEvaluation:")
+    print(evaluation)
 
 if __name__ == "__main__":
     main()
