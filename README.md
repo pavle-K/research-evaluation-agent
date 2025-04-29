@@ -58,7 +58,7 @@ The system follows this pipeline when evaluating a paper:
 
 1. Clone this repository:
    ```
-   git clone https://github.com/yourusername/deep_research_quality_check.git
+   git clone https://github.com/pavle-K/research-evaluation-agent.git
    cd deep_research_quality_check
    ```
 
